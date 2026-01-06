@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ink Subscription Calculator (Internal)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #111;
+      background: #1a1a1a;
+      padding: 20px;
+      margin: 0;
+    }
+    .calc-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .calc-card {
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      padding: 20px;
+      margin: 14px 0;
+      background: #242424;
+      color: #e8e8e8;
+    }
+    .calc-card h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: #fff;
+    }
+    .calc-card h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      color: #ccc;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .calc-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+    }
+    .calc-grid-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 800px) {
+      .calc-grid, .calc-grid-3, .calc-grid-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .calc-field {
+      margin-bottom: 14px;
+    }
+    .calc-label {
+      display: block;
+      font-size: 12px;
+      color: #999;
+      margin: 0 0 6px;
+      font-weight: 600;
+    }
+    .calc-input,
+    .calc-select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.15);
+      outline: none;
+      font-size: 14px;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: inherit;
+    }
+    .calc-input:focus,
+    .calc-select:focus {
+      border-color: rgba(255,255,255,.3);
+    }
+    .calc-input::placeholder {
+      color: #666;
+    }
+    .calc-muted {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+    .calc-pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.1);
+      font-size: 11px;
+      color: #aaa;
+      background: rgba(255,255,255,.05);
+      margin: 3px 3px 3px 0;
+    }
+    .calc-pill-system {
+      background: rgba(80,200,120,.15);
+      border-color: rgba(80,200,120,.3);
+      color: #6fcf97;
+    }
+    .calc-pill-excluded {
+      background: rgba(200,80,80,.15);
+      border-color: rgba(200,80,80,.3);
+      color: #cf6f6f;
+    }
+    .calc-result {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .calc-result-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .calc-result-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 800px) {
+      .calc-result, .calc-result-3, .calc-result-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .calc-kpi {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(255,255,255,.03);
+    }
+    .calc-kpi-customer {
+      background: rgba(80,160,255,.1);
+      border-color: rgba(80,160,255,.25);
+    }
+    .calc-kpi-internal {
+      background: rgba(255,160,80,.1);
+      border-color: rgba(255,160,80,.25);
+    }
+    .calc-kpi-profit {
+      background: rgba(80,200,120,.1);
+      border-color: rgba(80,200,120,.25);
+    }
+    .calc-kpi-label {
+      font-size: 12px;
+      color: #888;
+    }
+    .calc-kpi-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: #fff;
+    }
+    .calc-kpi-sub {
+      font-size: 12px;
+      color: #777;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .calc-divider {
+      height: 1px;
+      background: rgba(255,255,255,.08);
+      margin: 18px 0;
+    }
+    .calc-btn {
+      padding: 11px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: #fff;
+      color: #111;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .calc-btn:hover {
+      background: #e0e0e0;
+    }
+    .calc-btn-secondary {
+      background: #333;
+      color: #fff;
+      border-color: rgba(255,255,255,.2);
+    }
+    .calc-btn-secondary:hover {
+      background: #444;
+    }
+    .calc-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .calc-warn {
+      border-left: 4px solid rgba(255,160,80,.6);
+      padding: 12px;
+      margin-top: 12px;
+      background: rgba(255,160,80,.08);
+      border-radius: 0 10px 10px 0;
+      color: #ccc;
+    }
+    .calc-info {
+      border-left: 4px solid rgba(80,160,255,.6);
+      padding: 12px;
+      margin-top: 12px;
+      background: rgba(80,160,255,.08);
+      border-radius: 0 10px 10px 0;
+      color: #ccc;
+    }
+    
+    /* Scenario table */
+    .scenario-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .scenario-table th,
+    .scenario-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      color: #ccc;
+    }
+    .scenario-table th {
+      font-weight: 600;
+      color: #888;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .scenario-table tr:last-child td {
+      border-bottom: none;
+    }
+    .scenario-table .highlight {
+      background: rgba(80,200,120,.1);
+    }
+    .scenario-table .warning {
+      background: rgba(255,80,80,.1);
+    }
+    
+    /* Copy output box */
+    .copy-output {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      color: #aaa;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    /* Header badge */
+    .internal-badge {
+      display: inline-block;
+      background: rgba(255,80,80,.2);
+      color: #ff9999;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="calc-container">
+    
+    <!-- Header -->
+    <div class="calc-card">
+      <h2>Ink Subscription Calculator <span class="internal-badge">Internal Use Only</span></h2>
+      <div class="calc-muted">
+        Size flat-rate ink subscriptions based on customer historical purchases and internal COGS. Track margin and set adjustment triggers.
+      </div>
+      <div style="margin-top: 14px;">
+        <span class="calc-section-label">Eligible Ink Systems</span><br>
+        <span class="calc-pill calc-pill-system">Paper Series</span>
+        <span class="calc-pill calc-pill-system">Direct/Indirect Thermal</span>
+        <span class="calc-pill calc-pill-system">Laminating Films</span>
+      </div>
+      <div style="margin-top: 10px;">
+        <span class="calc-section-label">Included Colors</span><br>
+        <span class="calc-pill">All Baseline Pigments</span>
+        <span class="calc-pill">Pre-Mixed PMS Colors</span>
+        <span class="calc-pill">Extenders & OPVs</span>
+        <span class="calc-pill">Opaque White</span>
+      </div>
+      <div style="margin-top: 10px;">
+        <span class="calc-section-label">Excluded — Transactional Only</span><br>
+        <span class="calc-pill calc-pill-excluded">Fluorescents</span>
+        <span class="calc-pill calc-pill-excluded">Metallics</span>
+        <span class="calc-pill calc-pill-excluded">UV/LED Systems</span>
+        <span class="calc-pill calc-pill-excluded">Specialty Pigments</span>
+      </div>
+    </div>
+
+    <!-- Customer & Historical Inputs -->
+    <div class="calc-card">
+      <h3>Customer & Historical Data</h3>
+      <div class="calc-grid">
+        <div class="calc-field">
+          <label class="calc-label" for="customerName">Customer Name</label>
+          <input class="calc-input" id="customerName" type="text" placeholder="e.g., ABC Printing Co.">
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="inkSystem">Primary Ink System</label>
+          <select class="calc-select" id="inkSystem">
+            <option value="paper">Paper Series</option>
+            <option value="thermal">Direct/Indirect Thermal</option>
+            <option value="laminating">Laminating Films</option>
+            <option value="mixed">Mixed Systems</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="historicalAnnual">Historical Annual Purchases ($)</label>
+          <input class="calc-input" id="historicalAnnual" type="text" inputmode="decimal" placeholder="e.g., 120000" value="120000">
+          <div class="calc-muted">What they paid us last 12 months (eligible systems only)</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="historicalMargin">Historical Margin on Account (%)</label>
+          <input class="calc-input" id="historicalMargin" type="number" min="10" max="70" step="0.5" value="42">
+          <div class="calc-muted">Actual margin we made on their purchases</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscription Pricing Inputs -->
+    <div class="calc-card">
+      <h3>Subscription Pricing</h3>
+      <div class="calc-grid-3">
+        <div class="calc-field">
+          <label class="calc-label" for="subscriptionDiscount">Customer Discount vs Historical (%)</label>
+          <input class="calc-input" id="subscriptionDiscount" type="number" min="0" max="25" step="0.5" value="10">
+          <div class="calc-muted">Savings we're offering. Typical: 8-15%</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="targetMargin">Target Subscription Margin (%)</label>
+          <input class="calc-input" id="targetMargin" type="number" min="10" max="70" step="0.5" value="38">
+          <div class="calc-muted">Our desired margin (can be lower to fund discount)</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="toleranceBand">COGS Tolerance Band (±%)</label>
+          <input class="calc-input" id="toleranceBand" type="number" min="5" max="30" step="1" value="15">
+          <div class="calc-muted">Acceptable variance before adjustment trigger</div>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-field">
+          <label class="calc-label" for="reviewPeriod">Review Period</label>
+          <select class="calc-select" id="reviewPeriod">
+            <option value="quarterly">Quarterly Check-ins</option>
+            <option value="annual" selected>Annual True-up</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="contractTerm">Contract Term</label>
+          <select class="calc-select" id="contractTerm">
+            <option value="12" selected>12 Months</option>
+            <option value="24">24 Months</option>
+            <option value="36">36 Months</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer-Facing Numbers -->
+    <div class="calc-card">
+      <h3>Customer-Facing Pricing</h3>
+      <div class="calc-section-label">What we quote the customer</div>
+      <div class="calc-result-4">
+        <div class="calc-kpi calc-kpi-customer">
+          <div class="calc-kpi-label">Monthly Subscription</div>
+          <div class="calc-kpi-value" id="monthlyPrice">$0</div>
+        </div>
+        <div class="calc-kpi calc-kpi-customer">
+          <div class="calc-kpi-label">Annual Subscription</div>
+          <div class="calc-kpi-value" id="annualPrice">$0</div>
+        </div>
+        <div class="calc-kpi calc-kpi-customer">
+          <div class="calc-kpi-label">Customer Savings</div>
+          <div class="calc-kpi-value" id="annualSavings">$0</div>
+          <div class="calc-kpi-sub" id="savingsPercent">/year</div>
+        </div>
+        <div class="calc-kpi calc-kpi-customer">
+          <div class="calc-kpi-label">Contract Value</div>
+          <div class="calc-kpi-value" id="contractValue">$0</div>
+          <div class="calc-kpi-sub" id="contractTerm">12-month term</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Internal COGS & Margin -->
+    <div class="calc-card">
+      <h3>Internal COGS & Margin Analysis</h3>
+      <div class="calc-section-label">Our actual economics</div>
+      <div class="calc-result-4">
+        <div class="calc-kpi calc-kpi-internal">
+          <div class="calc-kpi-label">Historical COGS (Annual)</div>
+          <div class="calc-kpi-value" id="historicalCOGS">$0</div>
+          <div class="calc-kpi-sub">Raw materials shipped last year</div>
+        </div>
+        <div class="calc-kpi calc-kpi-internal">
+          <div class="calc-kpi-label">Monthly COGS Ceiling</div>
+          <div class="calc-kpi-value" id="cogsCeiling">$0</div>
+          <div class="calc-kpi-sub" id="cogsRange">Range: $0 - $0</div>
+        </div>
+        <div class="calc-kpi calc-kpi-profit">
+          <div class="calc-kpi-label">Expected Gross Profit</div>
+          <div class="calc-kpi-value" id="expectedProfit">$0</div>
+          <div class="calc-kpi-sub">/year at projected COGS</div>
+        </div>
+        <div class="calc-kpi calc-kpi-profit">
+          <div class="calc-kpi-label">Effective Margin</div>
+          <div class="calc-kpi-value" id="effectiveMargin">0%</div>
+          <div class="calc-kpi-sub" id="marginDelta">vs 0% historical</div>
+        </div>
+      </div>
+      
+      <div class="calc-divider"></div>
+      
+      <div class="calc-section-label">Margin Comparison</div>
+      <div class="calc-result-3">
+        <div class="calc-kpi">
+          <div class="calc-kpi-label">Historical Margin</div>
+          <div class="calc-kpi-value" id="displayHistMargin">42%</div>
+          <div class="calc-kpi-sub">What we made before</div>
+        </div>
+        <div class="calc-kpi">
+          <div class="calc-kpi-label">Subscription Margin</div>
+          <div class="calc-kpi-value" id="displaySubMargin">38%</div>
+          <div class="calc-kpi-sub">What we'll make now</div>
+        </div>
+        <div class="calc-kpi">
+          <div class="calc-kpi-label">Margin Trade-off</div>
+          <div class="calc-kpi-value" id="marginTradeoff">-4%</div>
+          <div class="calc-kpi-sub">Funds customer discount</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario Analysis -->
+    <div class="calc-card">
+      <h3>Scenario Analysis — What If COGS Varies?</h3>
+      <div class="calc-muted" style="margin-bottom: 12px;">
+        Based on actual raw material shipments. If customer's usage increases/decreases, here's how it affects our margin.
+      </div>
+      <table class="scenario-table">
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>Monthly COGS</th>
+            <th>Annual COGS</th>
+            <th>Gross Profit</th>
+            <th>Margin</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="scenarioBody">
+        </tbody>
+      </table>
+      
+      <div class="calc-warn">
+        <b>Adjustment Trigger:</b> If actual COGS exceeds ceiling + tolerance for <span id="reviewPeriodText">the trailing 12 months</span>, initiate repricing at renewal. Track raw material shipments in production system — customer never sees per-pound pricing.
+      </div>
+    </div>
+
+    <!-- Talking Points -->
+    <div class="calc-card">
+      <h3>Customer Talking Points</h3>
+      <div class="calc-info">
+        <b>How to explain this to the customer:</b><br><br>
+        "Your subscription is based on your historical ink purchases. You'll pay <b id="talkMonthly">$X</b>/month — that's <b id="talkDiscount">10%</b> less than what you spent last year. You get unlimited baseline and PMS colors in <span id="talkSystem">Paper Series</span>. No per-pound tracking, no surprises. If your business grows significantly, we'll revisit at renewal to make sure the subscription still fits your needs."
+      </div>
+      <div style="margin-top: 14px;">
+        <span class="calc-section-label">What's Included</span>
+        <ul style="margin: 8px 0; padding-left: 20px; color: #aaa; font-size: 13px; line-height: 1.8;">
+          <li>All baseline pigments (Rubine, Yellow, Warm Red, Black, Process Blue, Green, Violet)</li>
+          <li>All pre-mixed PMS colors in their ink system</li>
+          <li>Extenders, OPVs, and Opaque White</li>
+          <li>Flat monthly pricing</li>
+        </ul>
+      </div>
+      <div style="margin-top: 10px;">
+        <span class="calc-section-label">What's NOT Included (bill separately)</span>
+        <ul style="margin: 8px 0; padding-left: 20px; color: #aaa; font-size: 13px; line-height: 1.8;">
+          <li>Fluorescents, Metallics, Specialty Pigments</li>
+          <li>Ink systems outside their primary system</li>
+          <li>UV/LED systems</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Export Notes -->
+    <div class="calc-card">
+      <h3>Export — Internal Documentation</h3>
+      <div class="calc-section-label">Copy to CRM / Deal Notes</div>
+      <div class="copy-output" id="internalSummary">Loading...</div>
+      <div style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="calc-btn" onclick="copyInternalSummary()">Copy to Clipboard</button>
+        <button class="calc-btn calc-btn-secondary" onclick="downloadSummary()">Download as .txt</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function $(id) { return document.getElementById(id); }
+    
+    function formatUSD(n) {
+      if (!isFinite(n)) n = 0;
+      return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    }
+    
+    function parseMoney(v) {
+      const cleaned = String(v || '').replace(/[^0-9.]/g, '');
+      const num = parseFloat(cleaned);
+      return isFinite(num) ? num : 0;
+    }
+    
+    function calculate() {
+      // Inputs
+      const customerName = $('customerName').value || 'Customer';
+      const inkSystem = $('inkSystem').value;
+      const inkSystemLabel = $('inkSystem').options[$('inkSystem').selectedIndex].text;
+      const historicalAnnual = parseMoney($('historicalAnnual').value);
+      const subscriptionDiscount = Math.max(0, Math.min(25, parseFloat($('subscriptionDiscount').value) || 0));
+      const historicalMargin = Math.max(10, Math.min(70, parseFloat($('historicalMargin').value) || 42));
+      const targetMargin = Math.max(10, Math.min(70, parseFloat($('targetMargin').value) || 38));
+      const toleranceBand = Math.max(5, Math.min(30, parseFloat($('toleranceBand').value) || 15));
+      const reviewPeriod = $('reviewPeriod').value;
+      const contractTermMonths = parseInt($('contractTerm').value) || 12;
+      
+      // Customer-facing math
+      const annualSubscription = historicalAnnual * (1 - subscriptionDiscount / 100);
+      const monthlySubscription = annualSubscription / 12;
+      const annualSavings = historicalAnnual - annualSubscription;
+      const contractValue = monthlySubscription * contractTermMonths;
+      
+      // Internal COGS math
+      const historicalCOGS = historicalAnnual * (1 - historicalMargin / 100);
+      const monthlyCOGSCeiling = historicalCOGS / 12;
+      const cogsLow = monthlyCOGSCeiling * (1 - toleranceBand / 100);
+      const cogsHigh = monthlyCOGSCeiling * (1 + toleranceBand / 100);
+      
+      // Profit & margin
+      const expectedAnnualProfit = annualSubscription - historicalCOGS;
+      const effectiveMargin = annualSubscription > 0 ? (expectedAnnualProfit / annualSubscription) * 100 : 0;
+      const marginDelta = effectiveMargin - historicalMargin;
+      
+      // Update customer-facing outputs
+      $('monthlyPrice').textContent = formatUSD(monthlySubscription);
+      $('annualPrice').textContent = formatUSD(annualSubscription);
+      $('annualSavings').textContent = formatUSD(annualSavings);
+      $('savingsPercent').textContent = subscriptionDiscount.toFixed(1) + '% savings/year';
+      $('contractValue').textContent = formatUSD(contractValue);
+      $('contractTerm').textContent = contractTermMonths + '-month term';
+      
+      // Update internal outputs
+      $('historicalCOGS').textContent = formatUSD(historicalCOGS);
+      $('cogsCeiling').textContent = formatUSD(monthlyCOGSCeiling);
+      $('cogsRange').textContent = `Range: ${formatUSD(cogsLow)} - ${formatUSD(cogsHigh)}`;
+      $('expectedProfit').textContent = formatUSD(expectedAnnualProfit);
+      $('effectiveMargin').textContent = effectiveMargin.toFixed(1) + '%';
+      $('marginDelta').textContent = `vs ${historicalMargin.toFixed(1)}% historical`;
+      
+      // Margin comparison
+      $('displayHistMargin').textContent = historicalMargin.toFixed(1) + '%';
+      $('displaySubMargin').textContent = effectiveMargin.toFixed(1) + '%';
+      $('marginTradeoff').textContent = (marginDelta >= 0 ? '+' : '') + marginDelta.toFixed(1) + '%';
+      
+      // Talking points
+      $('talkMonthly').textContent = formatUSD(monthlySubscription);
+      $('talkDiscount').textContent = subscriptionDiscount.toFixed(0) + '%';
+      $('talkSystem').textContent = inkSystemLabel;
+      
+      // Review period text
+      $('reviewPeriodText').textContent = reviewPeriod === 'quarterly' ? '2+ consecutive quarters' : 'the trailing 12 months';
+      
+      // Scenario table
+      const scenarios = [
+        { label: 'COGS -30%', factor: 0.70 },
+        { label: 'COGS -20%', factor: 0.80 },
+        { label: 'COGS -10%', factor: 0.90 },
+        { label: 'As Projected', factor: 1.00 },
+        { label: 'COGS +10%', factor: 1.10 },
+        { label: 'COGS +20%', factor: 1.20 },
+        { label: 'COGS +30%', factor: 1.30 },
+        { label: 'COGS +50%', factor: 1.50 },
+      ];
+      
+      let scenarioHTML = '';
+      scenarios.forEach(s => {
+        const monthCOGS = monthlyCOGSCeiling * s.factor;
+        const annCOGS = monthCOGS * 12;
+        const profit = annualSubscription - annCOGS;
+        const margin = annualSubscription > 0 ? (profit / annualSubscription) * 100 : 0;
+        
+        let status = '✓ OK';
+        let rowClass = '';
+        if (s.factor === 1.00) {
+          rowClass = 'highlight';
+          status = '● Baseline';
+        } else if (monthCOGS > cogsHigh) {
+          status = '⚠️ Review';
+          rowClass = 'warning';
+        } else if (monthCOGS < cogsLow) {
+          status = '✓ Under';
+        }
+        
+        scenarioHTML += `
+          <tr class="${rowClass}">
+            <td>${s.label}</td>
+            <td>${formatUSD(monthCOGS)}</td>
+            <td>${formatUSD(annCOGS)}</td>
+            <td>${formatUSD(profit)}</td>
+            <td>${margin.toFixed(1)}%</td>
+            <td>${status}</td>
+          </tr>
+        `;
+      });
+      $('scenarioBody').innerHTML = scenarioHTML;
+      
+      // Internal summary for export
+      const internalSummary = `═══════════════════════════════════════════════════════════════
+INK SUBSCRIPTION — INTERNAL PRICING DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+CUSTOMER: ${customerName}
+DATE: ${new Date().toLocaleDateString()}
+INK SYSTEM: ${inkSystemLabel}
+
+───────────────────────────────────────────────────────────────
+CUSTOMER-FACING PRICING
+───────────────────────────────────────────────────────────────
+Monthly Subscription:     ${formatUSD(monthlySubscription)}
+Annual Subscription:      ${formatUSD(annualSubscription)}
+Contract Term:            ${contractTermMonths} months
+Total Contract Value:     ${formatUSD(contractValue)}
+
+Customer Savings:         ${formatUSD(annualSavings)}/year (${subscriptionDiscount.toFixed(1)}% discount)
+vs Historical Annual:     ${formatUSD(historicalAnnual)}
+
+───────────────────────────────────────────────────────────────
+INTERNAL ECONOMICS
+───────────────────────────────────────────────────────────────
+Historical Margin:        ${historicalMargin.toFixed(1)}%
+Historical COGS:          ${formatUSD(historicalCOGS)}/year
+
+Subscription Margin:      ${effectiveMargin.toFixed(1)}%
+Margin Trade-off:         ${marginDelta.toFixed(1)}% (funds customer discount)
+
+Expected Gross Profit:    ${formatUSD(expectedAnnualProfit)}/year
+
+───────────────────────────────────────────────────────────────
+COGS MONITORING
+───────────────────────────────────────────────────────────────
+Monthly COGS Ceiling:     ${formatUSD(monthlyCOGSCeiling)}
+Tolerance Band:           ±${toleranceBand}%
+Acceptable Range:         ${formatUSD(cogsLow)} - ${formatUSD(cogsHigh)}/month
+
+Review Period:            ${reviewPeriod === 'quarterly' ? 'Quarterly' : 'Annual'}
+Adjustment Trigger:       COGS exceeds ${formatUSD(cogsHigh)}/mo for ${reviewPeriod === 'quarterly' ? '2+ quarters' : '12 months'}
+
+───────────────────────────────────────────────────────────────
+TRACKING INSTRUCTIONS
+───────────────────────────────────────────────────────────────
+• Track raw material shipments in production system
+• Do NOT reference per-pound pricing to customer
+• Flag account for review if COGS trends above ceiling
+• Initiate repricing conversation at renewal if adjustment triggered
+
+───────────────────────────────────────────────────────────────
+INCLUDED IN SUBSCRIPTION
+───────────────────────────────────────────────────────────────
+✓ All baseline pigments (Rubine, Yellow, Warm Red, Black, 
+  Process Blue, Green, Violet)
+✓ All pre-mixed PMS colors in ${inkSystemLabel}
+✓ Extenders, OPVs, Opaque White
+
+NOT INCLUDED (bill separately):
+✗ Fluorescents, Metallics, Specialty Pigments
+✗ UV/LED systems
+✗ Ink systems outside ${inkSystemLabel}
+
+═══════════════════════════════════════════════════════════════`;
+
+      $('internalSummary').textContent = internalSummary;
+    }
+    
+    function copyInternalSummary() {
+      navigator.clipboard.writeText($('internalSummary').textContent).then(() => {
+        alert('Copied to clipboard');
+      });
+    }
+    
+    function downloadSummary() {
+      const text = $('internalSummary').textContent;
+      const customerName = $('customerName').value || 'Customer';
+      const filename = `Ink-Subscription-${customerName.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.txt`;
+      
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    // Event listeners
+    ['customerName', 'inkSystem', 'historicalAnnual', 'historicalMargin', 'subscriptionDiscount', 'targetMargin', 'toleranceBand', 'reviewPeriod', 'contractTerm'].forEach(id => {
+      const elem = $(id);
+      if (elem) {
+        const event = elem.tagName === 'SELECT' ? 'change' : 'input';
+        elem.addEventListener(event, calculate);
+      }
+    });
+    
+    // Initial calculation
+    calculate();
+  </script>
+</body>
+</html>
