@@ -84,6 +84,11 @@
     .calc-input::placeholder {
       color: #666;
     }
+    .calc-input:disabled,
+    .calc-select:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .calc-muted {
       font-size: 12px;
       color: #777;
@@ -148,6 +153,10 @@
       background: rgba(80,200,120,.1);
       border-color: rgba(80,200,120,.25);
     }
+    .calc-kpi-warning {
+      background: rgba(255,80,80,.1);
+      border-color: rgba(255,80,80,.25);
+    }
     .calc-kpi-label {
       font-size: 12px;
       color: #888;
@@ -206,6 +215,14 @@
       border-radius: 0 10px 10px 0;
       color: #ccc;
     }
+    .calc-alert {
+      border-left: 4px solid rgba(255,80,80,.6);
+      padding: 12px;
+      margin-top: 12px;
+      background: rgba(255,80,80,.08);
+      border-radius: 0 10px 10px 0;
+      color: #ccc;
+    }
     .calc-info {
       border-left: 4px solid rgba(80,160,255,.6);
       padding: 12px;
@@ -213,6 +230,42 @@
       background: rgba(80,160,255,.08);
       border-radius: 0 10px 10px 0;
       color: #ccc;
+    }
+    
+    /* Toggle switch */
+    .toggle-container {
+      display: flex;
+      gap: 0;
+      background: #1a1a1a;
+      border-radius: 10px;
+      padding: 4px;
+      width: fit-content;
+    }
+    .toggle-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      color: #888;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .toggle-btn.active {
+      background: #fff;
+      color: #111;
+    }
+    .toggle-btn:hover:not(.active) {
+      color: #ccc;
+    }
+    
+    /* Conditional sections */
+    .customer-mode-section {
+      display: none;
+    }
+    .customer-mode-section.active {
+      display: block;
     }
     
     /* Scenario table */
@@ -242,7 +295,10 @@
       background: rgba(80,200,120,.1);
     }
     .scenario-table .warning {
-      background: rgba(255,80,80,.1);
+      background: rgba(255,180,80,.1);
+    }
+    .scenario-table .danger {
+      background: rgba(255,80,80,.15);
     }
     
     /* Copy output box */
@@ -274,6 +330,56 @@
       margin-left: 10px;
       vertical-align: middle;
     }
+    
+    /* Escalation timeline */
+    .escalation-timeline {
+      display: flex;
+      gap: 0;
+      margin-top: 12px;
+    }
+    .escalation-step {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.08);
+      position: relative;
+    }
+    .escalation-step:first-child {
+      border-radius: 10px 0 0 10px;
+    }
+    .escalation-step:last-child {
+      border-radius: 0 10px 10px 0;
+    }
+    .escalation-step-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .escalation-step-action {
+      font-size: 13px;
+      color: #ccc;
+      line-height: 1.4;
+    }
+    .escalation-step.warning {
+      background: rgba(255,180,80,.1);
+      border-color: rgba(255,180,80,.3);
+    }
+    .escalation-step.danger {
+      background: rgba(255,80,80,.1);
+      border-color: rgba(255,80,80,.3);
+    }
+    @media (max-width: 800px) {
+      .escalation-timeline {
+        flex-direction: column;
+      }
+      .escalation-step:first-child {
+        border-radius: 10px 10px 0 0;
+      }
+      .escalation-step:last-child {
+        border-radius: 0 0 10px 10px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -283,7 +389,7 @@
     <div class="calc-card">
       <h2>Ink Subscription Calculator <span class="internal-badge">Internal Use Only</span></h2>
       <div class="calc-muted">
-        Size flat-rate ink subscriptions based on customer historical purchases and internal COGS. Track margin and set adjustment triggers.
+        Size flat-rate ink subscriptions for new or existing customers. Track COGS, margin, and overage controls.
       </div>
       <div style="margin-top: 14px;">
         <span class="calc-section-label">Eligible Ink Systems</span><br>
@@ -307,9 +413,21 @@
       </div>
     </div>
 
-    <!-- Customer & Historical Inputs -->
+    <!-- Customer Type Toggle -->
     <div class="calc-card">
-      <h3>Customer & Historical Data</h3>
+      <h3>Customer Type</h3>
+      <div class="toggle-container">
+        <button class="toggle-btn active" id="toggleExisting" onclick="setCustomerMode('existing')">Existing Customer</button>
+        <button class="toggle-btn" id="toggleNew" onclick="setCustomerMode('new')">New Customer (Estimate)</button>
+      </div>
+      <div class="calc-muted" style="margin-top: 10px;">
+        <span id="modeDescription">Use historical purchase data from this account.</span>
+      </div>
+    </div>
+
+    <!-- Customer Info (Always Shown) -->
+    <div class="calc-card">
+      <h3>Customer Information</h3>
       <div class="calc-grid">
         <div class="calc-field">
           <label class="calc-label" for="customerName">Customer Name</label>
@@ -324,6 +442,13 @@
             <option value="mixed">Mixed Systems</option>
           </select>
         </div>
+      </div>
+    </div>
+
+    <!-- EXISTING CUSTOMER INPUTS -->
+    <div class="calc-card customer-mode-section active" id="existingCustomerSection">
+      <h3>Historical Data (Existing Customer)</h3>
+      <div class="calc-grid">
         <div class="calc-field">
           <label class="calc-label" for="historicalAnnual">Historical Annual Purchases ($)</label>
           <input class="calc-input" id="historicalAnnual" type="text" inputmode="decimal" placeholder="e.g., 120000" value="120000">
@@ -337,41 +462,171 @@
       </div>
     </div>
 
+    <!-- NEW CUSTOMER INPUTS -->
+    <div class="calc-card customer-mode-section" id="newCustomerSection">
+      <h3>Estimate Inputs (New Customer)</h3>
+      <div class="calc-info" style="margin-top: 0; margin-bottom: 16px;">
+        No historical data — estimate based on their production profile or competitor spend.
+      </div>
+      
+      <div class="calc-section-label">Option A: Estimate from Production Profile</div>
+      <div class="calc-grid-4">
+        <div class="calc-field">
+          <label class="calc-label" for="numPresses">Number of Presses</label>
+          <input class="calc-input" id="numPresses" type="number" min="1" max="50" value="2">
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="pressWidth">Avg Press Width (inches)</label>
+          <input class="calc-input" id="pressWidth" type="number" min="4" max="80" value="17">
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="shiftsPerDay">Shifts per Day</label>
+          <select class="calc-select" id="shiftsPerDay">
+            <option value="1">1 Shift</option>
+            <option value="2" selected>2 Shifts</option>
+            <option value="3">3 Shifts</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="daysPerWeek">Days per Week</label>
+          <select class="calc-select" id="daysPerWeek">
+            <option value="5" selected>5 Days</option>
+            <option value="6">6 Days</option>
+            <option value="7">7 Days</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-field">
+          <label class="calc-label" for="productType">Primary Product Type</label>
+          <select class="calc-select" id="productType">
+            <option value="labels">Labels (light coverage)</option>
+            <option value="flexible" selected>Flexible Packaging (medium coverage)</option>
+            <option value="heavycoverage">Heavy Coverage / Solids</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="estimatedFromProfile">Estimated Annual Spend (calculated)</label>
+          <input class="calc-input" id="estimatedFromProfile" type="text" readonly disabled>
+          <div class="calc-muted">Based on industry benchmarks</div>
+        </div>
+      </div>
+      
+      <div class="calc-divider"></div>
+      
+      <div class="calc-section-label">Option B: Competitor Spend Conversion</div>
+      <div class="calc-grid">
+        <div class="calc-field">
+          <label class="calc-label" for="competitorSpend">Current Annual Spend with Competitor ($)</label>
+          <input class="calc-input" id="competitorSpend" type="text" inputmode="decimal" placeholder="e.g., 100000">
+          <div class="calc-muted">What they're paying another supplier</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="priceComparison">Our Pricing vs Competitor</label>
+          <select class="calc-select" id="priceComparison">
+            <option value="0.85">We're ~15% cheaper</option>
+            <option value="0.90">We're ~10% cheaper</option>
+            <option value="0.95">We're ~5% cheaper</option>
+            <option value="1.00" selected>About the same</option>
+            <option value="1.05">We're ~5% higher</option>
+            <option value="1.10">We're ~10% higher</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="calc-divider"></div>
+      
+      <div class="calc-section-label">Option C: Direct COGS-Based Sizing</div>
+      <div class="calc-grid">
+        <div class="calc-field">
+          <label class="calc-label" for="directMonthlyCOGS">Monthly COGS We're Willing to Commit ($)</label>
+          <input class="calc-input" id="directMonthlyCOGS" type="text" inputmode="decimal" placeholder="e.g., 5000">
+          <div class="calc-muted">Start from what we'll ship, work backward to price</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="useDirectCOGS">Use Direct COGS Method?</label>
+          <select class="calc-select" id="useDirectCOGS">
+            <option value="no" selected>No — Use Profile/Competitor Estimate</option>
+            <option value="yes">Yes — Use Direct COGS Entry</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="calc-divider"></div>
+      
+      <div class="calc-field">
+        <label class="calc-label" for="newTargetMargin">Target Margin for New Account (%)</label>
+        <input class="calc-input" id="newTargetMargin" type="number" min="20" max="60" step="0.5" value="40" style="max-width: 200px;">
+        <div class="calc-muted">Since no historical margin, set your target</div>
+      </div>
+      
+      <div class="calc-field">
+        <label class="calc-label">Estimation Notes</label>
+        <textarea class="calc-input" id="estimationNotes" rows="3" placeholder="Document assumptions, source of competitor info, etc."></textarea>
+      </div>
+    </div>
+
     <!-- Subscription Pricing Inputs -->
     <div class="calc-card">
-      <h3>Subscription Pricing</h3>
+      <h3>Subscription Terms</h3>
       <div class="calc-grid-3">
         <div class="calc-field">
-          <label class="calc-label" for="subscriptionDiscount">Customer Discount vs Historical (%)</label>
+          <label class="calc-label" for="subscriptionDiscount">Customer Discount vs Base (%)</label>
           <input class="calc-input" id="subscriptionDiscount" type="number" min="0" max="25" step="0.5" value="10">
           <div class="calc-muted">Savings we're offering. Typical: 8-15%</div>
         </div>
         <div class="calc-field">
           <label class="calc-label" for="targetMargin">Target Subscription Margin (%)</label>
           <input class="calc-input" id="targetMargin" type="number" min="10" max="70" step="0.5" value="38">
-          <div class="calc-muted">Our desired margin (can be lower to fund discount)</div>
+          <div class="calc-muted">Desired margin (existing customers only)</div>
         </div>
         <div class="calc-field">
-          <label class="calc-label" for="toleranceBand">COGS Tolerance Band (±%)</label>
-          <input class="calc-input" id="toleranceBand" type="number" min="5" max="30" step="1" value="15">
-          <div class="calc-muted">Acceptable variance before adjustment trigger</div>
+          <label class="calc-label" for="contractTerm">Contract Term (months)</label>
+          <input class="calc-input" id="contractTerm" type="number" min="1" max="60" step="1" value="12">
+          <div class="calc-muted">Length of subscription commitment</div>
         </div>
       </div>
-      <div class="calc-grid">
+    </div>
+
+    <!-- Overage Controls -->
+    <div class="calc-card">
+      <h3>Overage Controls & Limits</h3>
+      <div class="calc-muted" style="margin-bottom: 14px;">
+        Protect against customers ordering significantly more than their subscription covers.
+      </div>
+      <div class="calc-grid-3">
         <div class="calc-field">
-          <label class="calc-label" for="reviewPeriod">Review Period</label>
-          <select class="calc-select" id="reviewPeriod">
-            <option value="quarterly">Quarterly Check-ins</option>
-            <option value="annual" selected>Annual True-up</option>
-          </select>
+          <label class="calc-label" for="toleranceBand">Soft Cap Tolerance (±%)</label>
+          <input class="calc-input" id="toleranceBand" type="number" min="5" max="30" step="1" value="15">
+          <div class="calc-muted">Acceptable variance before conversation</div>
         </div>
         <div class="calc-field">
-          <label class="calc-label" for="contractTerm">Contract Term</label>
-          <select class="calc-select" id="contractTerm">
-            <option value="12" selected>12 Months</option>
-            <option value="24">24 Months</option>
-            <option value="36">36 Months</option>
-          </select>
+          <label class="calc-label" for="hardCapMultiplier">Hard Cap Multiplier (x)</label>
+          <input class="calc-input" id="hardCapMultiplier" type="number" min="1.2" max="3" step="0.1" value="1.5">
+          <div class="calc-muted">Max COGS = ceiling × this (e.g., 1.5x)</div>
+        </div>
+        <div class="calc-field">
+          <label class="calc-label" for="overageRate">Overage Rate (% markup on COGS)</label>
+          <input class="calc-input" id="overageRate" type="number" min="20" max="100" step="5" value="50">
+          <div class="calc-muted">What we charge beyond hard cap</div>
+        </div>
+      </div>
+      
+      <div class="calc-divider"></div>
+      
+      <div class="calc-section-label">Escalation Path (Monthly Review)</div>
+      <div class="escalation-timeline">
+        <div class="escalation-step">
+          <div class="escalation-step-title">Month 1 Over Soft Cap</div>
+          <div class="escalation-step-action">Internal flag. Monitor next month. No customer contact yet.</div>
+        </div>
+        <div class="escalation-step warning">
+          <div class="escalation-step-title">Month 2 Consecutive</div>
+          <div class="escalation-step-action">Notify customer. "Usage trending high — let's review fit."</div>
+        </div>
+        <div class="escalation-step danger">
+          <div class="escalation-step-title">Month 3+ or Hard Cap Hit</div>
+          <div class="escalation-step-action">Formal adjustment. Re-price subscription or bill overages.</div>
         </div>
       </div>
     </div>
@@ -397,7 +652,7 @@
         <div class="calc-kpi calc-kpi-customer">
           <div class="calc-kpi-label">Contract Value</div>
           <div class="calc-kpi-value" id="contractValue">$0</div>
-          <div class="calc-kpi-sub" id="contractTerm">12-month term</div>
+          <div class="calc-kpi-sub" id="contractTermDisplay">12-month term</div>
         </div>
       </div>
     </div>
@@ -408,14 +663,14 @@
       <div class="calc-section-label">Our actual economics</div>
       <div class="calc-result-4">
         <div class="calc-kpi calc-kpi-internal">
-          <div class="calc-kpi-label">Historical COGS (Annual)</div>
-          <div class="calc-kpi-value" id="historicalCOGS">$0</div>
-          <div class="calc-kpi-sub">Raw materials shipped last year</div>
+          <div class="calc-kpi-label" id="cogsLabel">Historical COGS (Annual)</div>
+          <div class="calc-kpi-value" id="annualCOGS">$0</div>
+          <div class="calc-kpi-sub">Raw materials basis</div>
         </div>
         <div class="calc-kpi calc-kpi-internal">
           <div class="calc-kpi-label">Monthly COGS Ceiling</div>
           <div class="calc-kpi-value" id="cogsCeiling">$0</div>
-          <div class="calc-kpi-sub" id="cogsRange">Range: $0 - $0</div>
+          <div class="calc-kpi-sub" id="cogsRange">Soft cap range</div>
         </div>
         <div class="calc-kpi calc-kpi-profit">
           <div class="calc-kpi-label">Expected Gross Profit</div>
@@ -425,28 +680,28 @@
         <div class="calc-kpi calc-kpi-profit">
           <div class="calc-kpi-label">Effective Margin</div>
           <div class="calc-kpi-value" id="effectiveMargin">0%</div>
-          <div class="calc-kpi-sub" id="marginDelta">vs 0% historical</div>
+          <div class="calc-kpi-sub" id="marginDelta"></div>
         </div>
       </div>
       
       <div class="calc-divider"></div>
       
-      <div class="calc-section-label">Margin Comparison</div>
+      <div class="calc-section-label">Overage Thresholds</div>
       <div class="calc-result-3">
         <div class="calc-kpi">
-          <div class="calc-kpi-label">Historical Margin</div>
-          <div class="calc-kpi-value" id="displayHistMargin">42%</div>
-          <div class="calc-kpi-sub">What we made before</div>
+          <div class="calc-kpi-label">Soft Cap (Monthly COGS)</div>
+          <div class="calc-kpi-value" id="softCapDisplay">$0</div>
+          <div class="calc-kpi-sub">Triggers monitoring</div>
         </div>
-        <div class="calc-kpi">
-          <div class="calc-kpi-label">Subscription Margin</div>
-          <div class="calc-kpi-value" id="displaySubMargin">38%</div>
-          <div class="calc-kpi-sub">What we'll make now</div>
+        <div class="calc-kpi calc-kpi-warning">
+          <div class="calc-kpi-label">Hard Cap (Monthly COGS)</div>
+          <div class="calc-kpi-value" id="hardCapDisplay">$0</div>
+          <div class="calc-kpi-sub">Triggers overage billing</div>
         </div>
-        <div class="calc-kpi">
-          <div class="calc-kpi-label">Margin Trade-off</div>
-          <div class="calc-kpi-value" id="marginTradeoff">-4%</div>
-          <div class="calc-kpi-sub">Funds customer discount</div>
+        <div class="calc-kpi calc-kpi-warning">
+          <div class="calc-kpi-label">Overage Rate</div>
+          <div class="calc-kpi-value" id="overageRateDisplay">$0</div>
+          <div class="calc-kpi-sub">Per $1 COGS over hard cap</div>
         </div>
       </div>
     </div>
@@ -455,7 +710,7 @@
     <div class="calc-card">
       <h3>Scenario Analysis — What If COGS Varies?</h3>
       <div class="calc-muted" style="margin-bottom: 12px;">
-        Based on actual raw material shipments. If customer's usage increases/decreases, here's how it affects our margin.
+        Based on actual raw material shipments. Shows how margin changes and when overages kick in.
       </div>
       <table class="scenario-table">
         <thead>
@@ -471,10 +726,6 @@
         <tbody id="scenarioBody">
         </tbody>
       </table>
-      
-      <div class="calc-warn">
-        <b>Adjustment Trigger:</b> If actual COGS exceeds ceiling + tolerance for <span id="reviewPeriodText">the trailing 12 months</span>, initiate repricing at renewal. Track raw material shipments in production system — customer never sees per-pound pricing.
-      </div>
     </div>
 
     <!-- Talking Points -->
@@ -482,7 +733,8 @@
       <h3>Customer Talking Points</h3>
       <div class="calc-info">
         <b>How to explain this to the customer:</b><br><br>
-        "Your subscription is based on your historical ink purchases. You'll pay <b id="talkMonthly">$X</b>/month — that's <b id="talkDiscount">10%</b> less than what you spent last year. You get unlimited baseline and PMS colors in <span id="talkSystem">Paper Series</span>. No per-pound tracking, no surprises. If your business grows significantly, we'll revisit at renewal to make sure the subscription still fits your needs."
+        "Your subscription is <b id="talkMonthly">$X</b>/month — that's <b id="talkDiscount">10%</b> less than <span id="talkBasis">what you spent last year</span>. You get unlimited baseline and PMS colors in <span id="talkSystem">Paper Series</span>. No per-pound tracking, no surprises.<br><br>
+        The subscription covers your normal usage. If your business grows significantly and you're consistently using more, we'll work together to adjust the subscription to match. For any unexpected spikes well beyond your normal range, we'd bill those separately at our standard rates."
       </div>
       <div style="margin-top: 14px;">
         <span class="calc-section-label">What's Included</span>
@@ -490,7 +742,7 @@
           <li>All baseline pigments (Rubine, Yellow, Warm Red, Black, Process Blue, Green, Violet)</li>
           <li>All pre-mixed PMS colors in their ink system</li>
           <li>Extenders, OPVs, and Opaque White</li>
-          <li>Flat monthly pricing</li>
+          <li>Flat monthly pricing — no per-pound tracking</li>
         </ul>
       </div>
       <div style="margin-top: 10px;">
@@ -499,6 +751,7 @@
           <li>Fluorescents, Metallics, Specialty Pigments</li>
           <li>Ink systems outside their primary system</li>
           <li>UV/LED systems</li>
+          <li>Usage beyond hard cap (billed at overage rate)</li>
         </ul>
       </div>
     </div>
@@ -517,6 +770,9 @@
   </div>
 
   <script>
+    // State
+    let customerMode = 'existing'; // 'existing' or 'new'
+    
     function $(id) { return document.getElementById(id); }
     
     function formatUSD(n) {
@@ -530,82 +786,195 @@
       return isFinite(num) ? num : 0;
     }
     
+    function setCustomerMode(mode) {
+      customerMode = mode;
+      
+      // Update toggle buttons
+      $('toggleExisting').classList.toggle('active', mode === 'existing');
+      $('toggleNew').classList.toggle('active', mode === 'new');
+      
+      // Update sections
+      $('existingCustomerSection').classList.toggle('active', mode === 'existing');
+      $('newCustomerSection').classList.toggle('active', mode === 'new');
+      
+      // Update description
+      $('modeDescription').textContent = mode === 'existing' 
+        ? 'Use historical purchase data from this account.'
+        : 'Estimate subscription size for a prospect with no purchase history.';
+      
+      // Enable/disable target margin field (only for existing)
+      $('targetMargin').disabled = (mode === 'new');
+      
+      calculate();
+    }
+    
+    function estimateFromProfile() {
+      const numPresses = parseInt($('numPresses').value) || 1;
+      const pressWidth = parseInt($('pressWidth').value) || 17;
+      const shiftsPerDay = parseInt($('shiftsPerDay').value) || 2;
+      const daysPerWeek = parseInt($('daysPerWeek').value) || 5;
+      const productType = $('productType').value;
+      
+      // Base ink consumption: lbs per inch of press width per shift
+      // Industry rough estimate: 0.5-2 lbs per inch per shift depending on coverage
+      let lbsPerInchPerShift;
+      switch (productType) {
+        case 'labels': lbsPerInchPerShift = 0.4; break;
+        case 'flexible': lbsPerInchPerShift = 0.8; break;
+        case 'heavycoverage': lbsPerInchPerShift = 1.4; break;
+        default: lbsPerInchPerShift = 0.8;
+      }
+      
+      // Annual lbs = presses × width × lbs/inch/shift × shifts × days × weeks
+      const annualLbs = numPresses * pressWidth * lbsPerInchPerShift * shiftsPerDay * daysPerWeek * 50;
+      
+      // Assume average price per lb of $8-12 depending on mix
+      const pricePerLb = 10;
+      const estimatedAnnual = annualLbs * pricePerLb;
+      
+      return estimatedAnnual;
+    }
+    
     function calculate() {
-      // Inputs
+      // Common inputs
       const customerName = $('customerName').value || 'Customer';
       const inkSystem = $('inkSystem').value;
       const inkSystemLabel = $('inkSystem').options[$('inkSystem').selectedIndex].text;
-      const historicalAnnual = parseMoney($('historicalAnnual').value);
       const subscriptionDiscount = Math.max(0, Math.min(25, parseFloat($('subscriptionDiscount').value) || 0));
-      const historicalMargin = Math.max(10, Math.min(70, parseFloat($('historicalMargin').value) || 42));
-      const targetMargin = Math.max(10, Math.min(70, parseFloat($('targetMargin').value) || 38));
+      const contractTermMonths = Math.max(1, parseInt($('contractTerm').value) || 12);
       const toleranceBand = Math.max(5, Math.min(30, parseFloat($('toleranceBand').value) || 15));
-      const reviewPeriod = $('reviewPeriod').value;
-      const contractTermMonths = parseInt($('contractTerm').value) || 12;
+      const hardCapMultiplier = Math.max(1.2, Math.min(3, parseFloat($('hardCapMultiplier').value) || 1.5));
+      const overageRatePct = Math.max(20, Math.min(100, parseFloat($('overageRate').value) || 50));
       
-      // Customer-facing math
-      const annualSubscription = historicalAnnual * (1 - subscriptionDiscount / 100);
+      let baseAnnual = 0;       // What we base the subscription on (customer's spend or estimated)
+      let annualCOGS = 0;       // Our cost of goods
+      let effectiveMargin = 0;  // What margin we'll make
+      let historicalMargin = 0;
+      let isEstimate = false;
+      let estimationMethod = '';
+      
+      if (customerMode === 'existing') {
+        // EXISTING CUSTOMER
+        baseAnnual = parseMoney($('historicalAnnual').value);
+        historicalMargin = Math.max(10, Math.min(70, parseFloat($('historicalMargin').value) || 42));
+        const targetMargin = Math.max(10, Math.min(70, parseFloat($('targetMargin').value) || 38));
+        
+        annualCOGS = baseAnnual * (1 - historicalMargin / 100);
+        
+        const annualSubscription = baseAnnual * (1 - subscriptionDiscount / 100);
+        effectiveMargin = annualSubscription > 0 ? ((annualSubscription - annualCOGS) / annualSubscription) * 100 : 0;
+        
+        $('cogsLabel').textContent = 'Historical COGS (Annual)';
+        $('marginDelta').textContent = `vs ${historicalMargin.toFixed(1)}% historical`;
+        
+      } else {
+        // NEW CUSTOMER
+        isEstimate = true;
+        const newTargetMargin = Math.max(20, Math.min(60, parseFloat($('newTargetMargin').value) || 40));
+        const useDirectCOGS = $('useDirectCOGS').value === 'yes';
+        
+        if (useDirectCOGS) {
+          // Direct COGS method
+          const directMonthlyCOGS = parseMoney($('directMonthlyCOGS').value);
+          annualCOGS = directMonthlyCOGS * 12;
+          // Work backward: subscription = COGS / (1 - margin)
+          baseAnnual = annualCOGS / (1 - newTargetMargin / 100);
+          estimationMethod = 'Direct COGS entry';
+        } else {
+          // Profile or competitor method
+          const competitorSpend = parseMoney($('competitorSpend').value);
+          const priceComparison = parseFloat($('priceComparison').value) || 1.0;
+          
+          if (competitorSpend > 0) {
+            // Use competitor spend
+            baseAnnual = competitorSpend * priceComparison;
+            estimationMethod = 'Competitor spend conversion';
+          } else {
+            // Use profile estimate
+            baseAnnual = estimateFromProfile();
+            estimationMethod = 'Production profile estimate';
+          }
+          
+          annualCOGS = baseAnnual * (1 - newTargetMargin / 100);
+        }
+        
+        effectiveMargin = newTargetMargin;
+        
+        $('cogsLabel').textContent = 'Estimated COGS (Annual)';
+        $('marginDelta').textContent = `target margin for new account`;
+        
+        // Update profile estimate display
+        $('estimatedFromProfile').value = formatUSD(estimateFromProfile());
+      }
+      
+      // Calculate subscription pricing
+      const annualSubscription = baseAnnual * (1 - subscriptionDiscount / 100);
       const monthlySubscription = annualSubscription / 12;
-      const annualSavings = historicalAnnual - annualSubscription;
+      const annualSavings = baseAnnual - annualSubscription;
       const contractValue = monthlySubscription * contractTermMonths;
       
-      // Internal COGS math
-      const historicalCOGS = historicalAnnual * (1 - historicalMargin / 100);
-      const monthlyCOGSCeiling = historicalCOGS / 12;
+      // COGS calculations
+      const monthlyCOGSCeiling = annualCOGS / 12;
+      const softCap = monthlyCOGSCeiling * (1 + toleranceBand / 100);
+      const hardCap = monthlyCOGSCeiling * hardCapMultiplier;
       const cogsLow = monthlyCOGSCeiling * (1 - toleranceBand / 100);
-      const cogsHigh = monthlyCOGSCeiling * (1 + toleranceBand / 100);
       
-      // Profit & margin
-      const expectedAnnualProfit = annualSubscription - historicalCOGS;
-      const effectiveMargin = annualSubscription > 0 ? (expectedAnnualProfit / annualSubscription) * 100 : 0;
-      const marginDelta = effectiveMargin - historicalMargin;
+      // Profit
+      const expectedAnnualProfit = annualSubscription - annualCOGS;
+      const actualEffectiveMargin = annualSubscription > 0 ? (expectedAnnualProfit / annualSubscription) * 100 : 0;
       
-      // Update customer-facing outputs
+      // Update displays
       $('monthlyPrice').textContent = formatUSD(monthlySubscription);
       $('annualPrice').textContent = formatUSD(annualSubscription);
       $('annualSavings').textContent = formatUSD(annualSavings);
       $('savingsPercent').textContent = subscriptionDiscount.toFixed(1) + '% savings/year';
       $('contractValue').textContent = formatUSD(contractValue);
-      $('contractTerm').textContent = contractTermMonths + '-month term';
+      $('contractTermDisplay').textContent = contractTermMonths + '-month term';
       
-      // Update internal outputs
-      $('historicalCOGS').textContent = formatUSD(historicalCOGS);
+      $('annualCOGS').textContent = formatUSD(annualCOGS);
       $('cogsCeiling').textContent = formatUSD(monthlyCOGSCeiling);
-      $('cogsRange').textContent = `Range: ${formatUSD(cogsLow)} - ${formatUSD(cogsHigh)}`;
+      $('cogsRange').textContent = `±${toleranceBand}%: ${formatUSD(cogsLow)} - ${formatUSD(softCap)}`;
       $('expectedProfit').textContent = formatUSD(expectedAnnualProfit);
-      $('effectiveMargin').textContent = effectiveMargin.toFixed(1) + '%';
-      $('marginDelta').textContent = `vs ${historicalMargin.toFixed(1)}% historical`;
+      $('effectiveMargin').textContent = actualEffectiveMargin.toFixed(1) + '%';
       
-      // Margin comparison
-      $('displayHistMargin').textContent = historicalMargin.toFixed(1) + '%';
-      $('displaySubMargin').textContent = effectiveMargin.toFixed(1) + '%';
-      $('marginTradeoff').textContent = (marginDelta >= 0 ? '+' : '') + marginDelta.toFixed(1) + '%';
+      $('softCapDisplay').textContent = formatUSD(softCap);
+      $('hardCapDisplay').textContent = formatUSD(hardCap);
+      $('overageRateDisplay').textContent = '$' + (1 + overageRatePct / 100).toFixed(2);
       
       // Talking points
       $('talkMonthly').textContent = formatUSD(monthlySubscription);
       $('talkDiscount').textContent = subscriptionDiscount.toFixed(0) + '%';
       $('talkSystem').textContent = inkSystemLabel;
-      
-      // Review period text
-      $('reviewPeriodText').textContent = reviewPeriod === 'quarterly' ? '2+ consecutive quarters' : 'the trailing 12 months';
+      $('talkBasis').textContent = isEstimate ? 'comparable accounts in your industry' : 'what you spent last year';
       
       // Scenario table
       const scenarios = [
         { label: 'COGS -30%', factor: 0.70 },
         { label: 'COGS -20%', factor: 0.80 },
-        { label: 'COGS -10%', factor: 0.90 },
         { label: 'As Projected', factor: 1.00 },
-        { label: 'COGS +10%', factor: 1.10 },
-        { label: 'COGS +20%', factor: 1.20 },
-        { label: 'COGS +30%', factor: 1.30 },
-        { label: 'COGS +50%', factor: 1.50 },
+        { label: 'COGS +15% (soft cap)', factor: 1 + toleranceBand / 100 },
+        { label: 'COGS +' + ((hardCapMultiplier - 1) * 100).toFixed(0) + '% (hard cap)', factor: hardCapMultiplier },
+        { label: 'COGS +75%', factor: 1.75 },
+        { label: 'COGS +100% (2x)', factor: 2.00 },
       ];
       
       let scenarioHTML = '';
       scenarios.forEach(s => {
         const monthCOGS = monthlyCOGSCeiling * s.factor;
         const annCOGS = monthCOGS * 12;
-        const profit = annualSubscription - annCOGS;
+        
+        // Calculate profit including potential overage charges
+        let profit = annualSubscription - annCOGS;
+        let overageNote = '';
+        
+        if (monthCOGS > hardCap) {
+          const monthlyOverage = monthCOGS - hardCap;
+          const annualOverage = monthlyOverage * 12;
+          const overageRevenue = annualOverage * (overageRatePct / 100);
+          profit += overageRevenue;
+          overageNote = ` (+${formatUSD(overageRevenue)} overage)`;
+        }
+        
         const margin = annualSubscription > 0 ? (profit / annualSubscription) * 100 : 0;
         
         let status = '✓ OK';
@@ -613,10 +982,13 @@
         if (s.factor === 1.00) {
           rowClass = 'highlight';
           status = '● Baseline';
-        } else if (monthCOGS > cogsHigh) {
-          status = '⚠️ Review';
+        } else if (monthCOGS > hardCap) {
+          status = '🛑 Overage Billing';
+          rowClass = 'danger';
+        } else if (monthCOGS > softCap) {
+          status = '⚠️ Escalation';
           rowClass = 'warning';
-        } else if (monthCOGS < cogsLow) {
+        } else if (s.factor < 1) {
           status = '✓ Under';
         }
         
@@ -625,7 +997,7 @@
             <td>${s.label}</td>
             <td>${formatUSD(monthCOGS)}</td>
             <td>${formatUSD(annCOGS)}</td>
-            <td>${formatUSD(profit)}</td>
+            <td>${formatUSD(profit)}${overageNote}</td>
             <td>${margin.toFixed(1)}%</td>
             <td>${status}</td>
           </tr>
@@ -633,7 +1005,9 @@
       });
       $('scenarioBody').innerHTML = scenarioHTML;
       
-      // Internal summary for export
+      // Internal summary
+      const estimationNotes = customerMode === 'new' ? ($('estimationNotes').value || 'None provided') : 'N/A';
+      
       const internalSummary = `═══════════════════════════════════════════════════════════════
 INK SUBSCRIPTION — INTERNAL PRICING DOCUMENTATION
 ═══════════════════════════════════════════════════════════════
@@ -641,6 +1015,8 @@ INK SUBSCRIPTION — INTERNAL PRICING DOCUMENTATION
 CUSTOMER: ${customerName}
 DATE: ${new Date().toLocaleDateString()}
 INK SYSTEM: ${inkSystemLabel}
+CUSTOMER TYPE: ${customerMode === 'existing' ? 'Existing Customer' : 'New Customer (Estimate)'}
+${customerMode === 'new' ? `ESTIMATION METHOD: ${estimationMethod}` : ''}
 
 ───────────────────────────────────────────────────────────────
 CUSTOMER-FACING PRICING
@@ -651,50 +1027,57 @@ Contract Term:            ${contractTermMonths} months
 Total Contract Value:     ${formatUSD(contractValue)}
 
 Customer Savings:         ${formatUSD(annualSavings)}/year (${subscriptionDiscount.toFixed(1)}% discount)
-vs Historical Annual:     ${formatUSD(historicalAnnual)}
+vs Base Annual:           ${formatUSD(baseAnnual)}
 
 ───────────────────────────────────────────────────────────────
 INTERNAL ECONOMICS
 ───────────────────────────────────────────────────────────────
-Historical Margin:        ${historicalMargin.toFixed(1)}%
-Historical COGS:          ${formatUSD(historicalCOGS)}/year
+${customerMode === 'existing' ? `Historical Margin:        ${historicalMargin.toFixed(1)}%` : `Target Margin:            ${effectiveMargin.toFixed(1)}%`}
+Annual COGS:              ${formatUSD(annualCOGS)}
+Monthly COGS Baseline:    ${formatUSD(monthlyCOGSCeiling)}
 
-Subscription Margin:      ${effectiveMargin.toFixed(1)}%
-Margin Trade-off:         ${marginDelta.toFixed(1)}% (funds customer discount)
-
+Effective Margin:         ${actualEffectiveMargin.toFixed(1)}%
 Expected Gross Profit:    ${formatUSD(expectedAnnualProfit)}/year
 
 ───────────────────────────────────────────────────────────────
-COGS MONITORING
+OVERAGE CONTROLS
 ───────────────────────────────────────────────────────────────
-Monthly COGS Ceiling:     ${formatUSD(monthlyCOGSCeiling)}
-Tolerance Band:           ±${toleranceBand}%
-Acceptable Range:         ${formatUSD(cogsLow)} - ${formatUSD(cogsHigh)}/month
+Soft Cap (triggers review):   ${formatUSD(softCap)}/month (+${toleranceBand}%)
+Hard Cap (triggers billing):  ${formatUSD(hardCap)}/month (${hardCapMultiplier}x baseline)
+Overage Rate:                 ${overageRatePct}% markup on COGS beyond hard cap
 
-Review Period:            ${reviewPeriod === 'quarterly' ? 'Quarterly' : 'Annual'}
-Adjustment Trigger:       COGS exceeds ${formatUSD(cogsHigh)}/mo for ${reviewPeriod === 'quarterly' ? '2+ quarters' : '12 months'}
+ESCALATION PATH:
+• Month 1 over soft cap → Internal flag, monitor
+• Month 2 consecutive  → Customer notification
+• Month 3+ or hard cap → Formal adjustment or overage billing
 
 ───────────────────────────────────────────────────────────────
-TRACKING INSTRUCTIONS
+MONTHLY REVIEW CHECKLIST
 ───────────────────────────────────────────────────────────────
-• Track raw material shipments in production system
-• Do NOT reference per-pound pricing to customer
-• Flag account for review if COGS trends above ceiling
-• Initiate repricing conversation at renewal if adjustment triggered
+□ Pull raw material shipments from production system
+□ Compare to COGS ceiling: ${formatUSD(monthlyCOGSCeiling)}
+□ Flag if over soft cap: ${formatUSD(softCap)}
+□ Bill overages if over hard cap: ${formatUSD(hardCap)}
+□ Update CRM with usage trend notes
 
 ───────────────────────────────────────────────────────────────
 INCLUDED IN SUBSCRIPTION
 ───────────────────────────────────────────────────────────────
-✓ All baseline pigments (Rubine, Yellow, Warm Red, Black, 
-  Process Blue, Green, Violet)
+✓ All baseline pigments
 ✓ All pre-mixed PMS colors in ${inkSystemLabel}
 ✓ Extenders, OPVs, Opaque White
 
-NOT INCLUDED (bill separately):
+NOT INCLUDED:
 ✗ Fluorescents, Metallics, Specialty Pigments
 ✗ UV/LED systems
 ✗ Ink systems outside ${inkSystemLabel}
+✗ Usage beyond hard cap (billed at overage rate)
 
+${customerMode === 'new' ? `───────────────────────────────────────────────────────────────
+ESTIMATION NOTES
+───────────────────────────────────────────────────────────────
+${estimationNotes}
+` : ''}
 ═══════════════════════════════════════════════════════════════`;
 
       $('internalSummary').textContent = internalSummary;
@@ -720,8 +1103,20 @@ NOT INCLUDED (bill separately):
       URL.revokeObjectURL(url);
     }
     
-    // Event listeners
-    ['customerName', 'inkSystem', 'historicalAnnual', 'historicalMargin', 'subscriptionDiscount', 'targetMargin', 'toleranceBand', 'reviewPeriod', 'contractTerm'].forEach(id => {
+    // Event listeners for existing customer fields
+    ['customerName', 'inkSystem', 'historicalAnnual', 'historicalMargin', 'subscriptionDiscount', 
+     'targetMargin', 'contractTerm', 'toleranceBand', 'hardCapMultiplier', 'overageRate'].forEach(id => {
+      const elem = $(id);
+      if (elem) {
+        const event = elem.tagName === 'SELECT' ? 'change' : 'input';
+        elem.addEventListener(event, calculate);
+      }
+    });
+    
+    // Event listeners for new customer fields
+    ['numPresses', 'pressWidth', 'shiftsPerDay', 'daysPerWeek', 'productType', 
+     'competitorSpend', 'priceComparison', 'directMonthlyCOGS', 'useDirectCOGS', 
+     'newTargetMargin', 'estimationNotes'].forEach(id => {
       const elem = $(id);
       if (elem) {
         const event = elem.tagName === 'SELECT' ? 'change' : 'input';
